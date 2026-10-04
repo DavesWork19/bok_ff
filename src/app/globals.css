@@ -1,0 +1,90 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme inline {
+  --color-ink: #0a0a0b;
+  --color-surface: #131316;
+  --color-surface-2: #1b1b20;
+  --color-line: #2a2a31;
+  --color-fg: #ececef;
+  --color-muted: #9d9da8;
+  --color-gold: #f5b82e;
+  --color-gold-soft: #f5b82e1f;
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-oswald);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-ink);
+  color: var(--color-fg);
+}
+
+::selection {
+  background: var(--color-gold);
+  color: var(--color-ink);
+}
+
+/* Long-form post styling, layered on the typography plugin. */
+.post-body {
+  --tw-prose-body: var(--color-fg);
+  --tw-prose-headings: var(--color-fg);
+  --tw-prose-bold: #ffffff;
+  --tw-prose-links: var(--color-gold);
+  --tw-prose-bullets: var(--color-gold);
+  --tw-prose-counters: var(--color-gold);
+  --tw-prose-quotes: var(--color-fg);
+  --tw-prose-quote-borders: var(--color-gold);
+  --tw-prose-hr: var(--color-line);
+}
+
+/* Team headings ("1. Team Name – Manager") read like a scoreboard row. */
+.post-body h3 {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-line);
+}
+
+.post-body hr {
+  width: 4rem;
+  margin: 3rem auto;
+  border: 0;
+  border-top: 3px solid var(--color-gold);
+  border-radius: 2px;
+}
+
+/* A divider already separates the section; skip the heading's own rule. */
+.post-body hr + h3 {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.post-body h6 {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 1rem;
+  color: var(--color-gold);
+}
+
+.post-body blockquote {
+  font-style: normal;
+  background: var(--color-surface);
+  border-radius: 0 0.5rem 0.5rem 0;
+  padding: 0.25rem 1.25rem;
+}
+
+.post-body blockquote p:first-of-type::before,
+.post-body blockquote p:last-of-type::after {
+  content: none;
+}
