@@ -139,7 +139,7 @@ async function convert(html) {
 
 // Pictures of a horizontal line the old posts used as section dividers; they
 // become real Markdown rules (`---`) instead of white boxes on the dark theme.
-const DIVIDER_IMAGES = new Set(["2025/09/image-2.png", "2025/10/image-1.png"]);
+const DIVIDER_IMAGES = new Set(["2025/09/image-2.png", "2025/10/image-1.png", "2026/10/image-4.png"]);
 const isDivider = (src) => DIVIDER_IMAGES.has(src.split("?")[0].replace(UPLOADS, ""));
 
 const yamlString = (s) => JSON.stringify(s);

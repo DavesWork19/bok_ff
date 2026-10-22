@@ -1,5 +1,5 @@
 ---
-title: "WEEK 6 RANKINGS"
+title: "2026 WEEK 6 RANKINGS"
 date: "2026-10-15T14:43:21-06:00"
 season: 2026
 wordpressUrl: "https://bkfantasyfootballcom.wordpress.com/2026/10/15/week-6-rankings-2/"
