@@ -1,6 +1,10 @@
-// One-off importer: pulls every post, page and image from the old WordPress.com
+// Importer: pulls every post, page, image and video embed from the WordPress.com
 // site and writes them as Markdown into content/ and images into public/images/wp/.
-// Safe to re-run; it overwrites the files it generated.
+// Safe to re-run (it's how new weekly posts come in); it overwrites the files it
+// generated, so fixes belong in this script, not in the Markdown.
+//
+// Every document is then checked against its WordPress HTML; anything that didn't
+// make it across (text, images, embeds) is listed and the script exits non-zero.
 //
 //   node scripts/import-wordpress.mjs
 
@@ -61,6 +65,21 @@ async function localImage(url) {
   return `/images/wp/${rel}`;
 }
 
+// WordPress renders YouTube blocks as its own player iframe; swap in a plain
+// responsive embed titled after the video (titles come from YouTube's oEmbed).
+const youtubeId = (html) =>
+  /(?:youtube\.com\/(?:embed\/|watch\?v=)|youtu\.be\/)([\w-]{11})/.exec(html)?.[1];
+const youtubeTitles = new Map();
+async function fetchYoutubeTitle(id) {
+  if (youtubeTitles.has(id)) return;
+  const res = await fetch(
+    `https://www.youtube.com/oembed?format=json&url=https://www.youtube.com/watch?v=${id}`,
+  );
+  youtubeTitles.set(id, res.ok ? (await res.json()).title : "YouTube video");
+}
+const youtubeEmbed = (id) =>
+  `<iframe src="https://www.youtube.com/embed/${id}" title="${youtubeTitles.get(id).replace(/"/g, "&quot;")}" style="width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 0.5rem;" allow="encrypted-media; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen loading="lazy"></iframe>`;
+
 function makeTurndown(imageMap) {
   const td = new TurndownService({
     headingStyle: "atx",
@@ -72,9 +91,13 @@ function makeTurndown(imageMap) {
   // Images keep the display width the author picked in the WP editor.
   td.addRule("figure", {
     filter: "figure",
-    replacement: (_content, node) => {
+    replacement: (content, node) => {
       const img = node.querySelector("img");
-      if (!img) return "";
+      if (!img) {
+        const id = youtubeId(node.innerHTML);
+        // Unknown figure types fall through as text; checkComplete flags them.
+        return id ? `\n\n${youtubeEmbed(id)}\n\n` : `\n\n${content}\n\n`;
+      }
       if (isDivider(img.getAttribute("src"))) return "\n\n---\n\n";
       const src = imageMap.get(img.getAttribute("src"));
       const alt = img.getAttribute("alt") || "";
@@ -130,6 +153,10 @@ async function convert(html) {
     const src = raw.replace(/&#038;/g, "&");
     if (!isDivider(src)) imageMap.set(src, await localImage(src));
   }
+  for (const [figure] of html.matchAll(/<figure[\s\S]*?<\/figure>/g)) {
+    const id = youtubeId(figure);
+    if (id) await fetchYoutubeTitle(id);
+  }
   return unquoteRunaways(makeTurndown(imageMap).turndown(html))
     .replace(/^(#+ \d+)\\\./gm, "$1.")
     .replace(/^>\s*\n(?!>)/gm, "\n")
@@ -141,6 +168,33 @@ async function convert(html) {
 // become real Markdown rules (`---`) instead of white boxes on the dark theme.
 const DIVIDER_IMAGES = new Set(["2025/09/image-2.png", "2025/10/image-1.png", "2026/10/image-4.png"]);
 const isDivider = (src) => DIVIDER_IMAGES.has(src.split("?")[0].replace(UPLOADS, ""));
+
+// Compares a converted document with its WordPress HTML so nothing is dropped
+// silently: every block of text must appear in the Markdown, and the number of
+// images and embeds must match. Punctuation and formatting are ignored.
+const problems = [];
+const words = (s) =>
+  s
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(n))
+    .replace(/&#x([\da-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&[a-z]+;/gi, " ")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+function checkComplete(name, html, md) {
+  const mdWords = ` ${words(md)} `;
+  for (const [, , inner] of html.matchAll(/<(p|li|h[1-6]|figcaption|td|th)\b[^>]*>([\s\S]*?)<\/\1>/g)) {
+    const text = words(inner.replace(/<[^>]+>/g, " "));
+    if (text && !mdWords.includes(` ${text} `)) problems.push(`${name}: missing text "${text.slice(0, 80)}"`);
+  }
+  const count = (s, re) => (s.match(re) ?? []).length;
+  const images = [...html.matchAll(/<img[^>]*\ssrc="([^"]+)"/g)].filter(([, s]) => !isDivider(s.replace(/&#038;/g, "&")));
+  const mdImages = count(md, /!\[[^\]]*\]\(|<img\s/g);
+  if (images.length !== mdImages) problems.push(`${name}: ${images.length} images on WordPress, ${mdImages} in Markdown`);
+  const embeds = count(html, /<iframe\s/g);
+  const mdEmbeds = count(md, /<iframe\s/g);
+  if (embeds !== mdEmbeds) problems.push(`${name}: ${embeds} embeds on WordPress, ${mdEmbeds} in Markdown`);
+}
 
 const yamlString = (s) => JSON.stringify(s);
 
@@ -155,24 +209,26 @@ async function writeDoc(dir, slug, frontmatter, body) {
 }
 
 for (const post of await fetchAll("post")) {
-  const title = decode(post.title).replace(/:\s*$/, "").trim();
+  let title = decode(post.title).replace(/:\s*$/, "").trim();
   const season = Number(/^(\d{4})/.exec(title)?.[1] ?? post.date.slice(0, 4));
-  await writeDoc(
-    "posts",
-    post.slug,
-    { title, date: post.date, season, wordpressUrl: post.URL },
-    (FIXUPS[post.slug] ?? ((md) => md))(await convert(post.content)),
-  );
+  // Titles always lead with the season, even when the author forgot it.
+  if (!/^\d{4}/.test(title)) title = `${season} ${title}`;
+  const body = (FIXUPS[post.slug] ?? ((md) => md))(await convert(post.content));
+  checkComplete(`posts/${post.slug}`, post.content, body);
+  await writeDoc("posts", post.slug, { title, date: post.date, season, wordpressUrl: post.URL }, body);
 }
 
 for (const page of await fetchAll("page")) {
   if (SKIP_PAGES.has(page.slug)) continue;
-  await writeDoc(
-    "pages",
-    PAGE_SLUGS[page.slug] ?? page.slug,
-    { title: decode(page.title).trim(), wordpressUrl: page.URL },
-    await convert(page.content),
-  );
+  const slug = PAGE_SLUGS[page.slug] ?? page.slug;
+  const body = await convert(page.content);
+  checkComplete(`pages/${slug}`, page.content, body);
+  await writeDoc("pages", slug, { title: decode(page.title).trim(), wordpressUrl: page.URL }, body);
 }
 
 console.log(`downloaded ${downloaded.size} images`);
+if (problems.length) {
+  console.error(`\n${problems.length} problem(s) — content on WordPress that didn't make it across:`);
+  for (const p of problems) console.error(`  - ${p}`);
+  process.exitCode = 1;
+}

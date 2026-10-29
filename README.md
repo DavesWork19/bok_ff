@@ -6,6 +6,14 @@ bkfantasyfootballcom.wordpress.com.
 
 ## Posting new rankings
 
+Rankings are written on WordPress and imported here. In Claude Code, run
+`/weekly-rankings 8` (the week number is optional). It runs
+`scripts/import-wordpress.mjs`, which pulls everything and fails if any text, image
+or video didn't come across, checks the new post against the original, builds, and
+pushes.
+
+To write a post directly here instead:
+
 Every post is a Markdown file in `content/posts/`. To publish a new week:
 
 1. Create `content/posts/2026-week-4-rankings.md` (the file name becomes the URL:

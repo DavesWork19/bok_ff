@@ -59,7 +59,7 @@ Some people (Evan) are saying this team is back. Some people (Evan) are saying t
 
 Record: 2-4 / PF: 723 / W6 Result: Loss against Evan
 
-<iframe src="https://www.youtube.com/embed/XOeSwMKYQH4" title="Whiskey Myers – Broken Window Serenade" style="width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 0.5rem;" allow="encrypted-media; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen loading="lazy"></iframe>
+<iframe src="https://www.youtube.com/embed/XOeSwMKYQH4" title="Whiskey Myers &quot;Broken Window Serenade&quot;" style="width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 0.5rem;" allow="encrypted-media; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen loading="lazy"></iframe>
 
 ### 9. Bust Down AP – Andrew Arney
 
